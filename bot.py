@@ -64,7 +64,7 @@ async def mute(ctx, member: discord.Member, duration=None):
 @commands.has_permissions(moderate_members=True)
 async def unmute(ctx, member: discord.Member):
     try:
-        await member.timeout_until(None)
+        await member.timed_out_until(None)
         await ctx.send(f"{member.mention} has been manually unmuted.")
     except:
         await ctx.send("Could not unmute this user.")

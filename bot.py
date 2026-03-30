@@ -1,3 +1,42 @@
+import discord
+from discord.ext import commands
+import asyncio
+import re
+from datetime import timedelta, datetime, timezone
+import os
+
+# Intents
+intents = discord.Intents.default()
+intents.message_content = True
+intents.members = True
+
+# Bot setup
+bot = commands.Bot(command_prefix="!", intents=intents)
+
+# Convert "10s", "5m", "2h", etc. into seconds
+def convert_time(time_str):
+    match = re.match(r"(\d+)(s|m|h|d|w)$", time_str)
+    if not match:
+        return None
+
+    num = int(match.group(1))
+    unit = match.group(2)
+
+    if unit == "s":
+        return num
+    if unit == "m":
+        return num * 60
+    if unit == "h":
+        return num * 60 * 60
+    if unit == "d":
+        return num * 60 * 60 * 24
+    if unit == "w":
+        return num * 60 * 60 * 24 * 7
+
+@bot.event
+async def on_ready():
+    print(f"Logged in as {bot.user}")
+
 @bot.command()
 @commands.has_permissions(moderate_members=True)
 async def mute(ctx, member: discord.Member, duration=None):
@@ -15,7 +54,7 @@ async def mute(ctx, member: discord.Member, duration=None):
         await member.timeout(end_time)
         await ctx.send(f"{member.mention} has been muted for **{duration}**")
 
-        # Auto unmute after time expires
+        # Auto unmute
         await asyncio.sleep(seconds)
         await member.timeout(None)
         await ctx.send(f"{member.mention} has been automatically unmuted.")
@@ -31,3 +70,6 @@ async def unmute(ctx, member: discord.Member):
         await ctx.send(f"{member.mention} has been manually unmuted.")
     except:
         await ctx.send("Could not unmute this user.")
+
+# Run bot (Railway loads TOKEN from environment)
+bot.run(os.getenv("TOKEN"))

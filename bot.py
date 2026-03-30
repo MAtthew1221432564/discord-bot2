@@ -49,12 +49,12 @@ async def mute(ctx, member: discord.Member, duration=None):
 
     try:
         end_time = datetime.now(timezone.utc) + timedelta(seconds=seconds)
-        await member.timeout_until(end_time)
+        await member.timed_out_until(end_time)
         await ctx.send(f"{member.mention} has been muted for **{duration}**")
 
         # Auto unmute after time expires
         await asyncio.sleep(seconds)
-        await member.timeout_until(None)
+        await member.timeout_out_until(None)
         await ctx.send(f"{member.mention} has been automatically unmuted.")
 
     except Exception as e:

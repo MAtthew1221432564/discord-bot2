@@ -1,75 +1,77 @@
 import discord
 from discord.ext import commands
-import asyncio
-import re
-from datetime import timedelta, datetime, timezone
 import os
 
-# Intents
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
-# Bot setup
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# Convert "10s", "5m", "2h", etc. into seconds
-def convert_time(time_str):
-    match = re.match(r"(\d+)(s|m|h|d|w)$", time_str)
-    if not match:
-        return None
-
-    num = int(match.group(1))
-    unit = match.group(2)
-
-    if unit == "s":
-        return num
-    if unit == "m":
-        return num * 60
-    if unit == "h":
-        return num * 60 * 60
-    if unit == "d":
-        return num * 60 * 60 * 24
-    if unit == "w":
-        return num * 60 * 60 * 24 * 7
-
-@bot.event
-async def on_ready():
-    print(f"Logged in as {bot.user}")
-
+# -----------------------------
+#        MUTE COMMAND
+# -----------------------------
 @bot.command()
 @commands.has_permissions(moderate_members=True)
-async def mute(ctx, member: discord.Member, duration=None):
-    if duration is None:
-        await ctx.send("You must include a time. Example: `!mute @user 10s`")
-        return
-
-    seconds = convert_time(duration)
-    if seconds is None:
-        await ctx.send("Invalid time format. Use: 10s, 1m, 10m, 1h, 1d, 1w")
-        return
+async def mute(ctx, member: discord.Member, duration: int, *, reason="No reason provided"):
+    if member == ctx.author:
+        return await ctx.send("You can't mute yourself.")
+    if member.top_role >= ctx.author.top_role:
+        return await ctx.send("You can't mute someone with a higher or equal role.")
+    if member.top_role >= ctx.guild.me.top_role:
+        return await ctx.send("I can't mute someone with a higher role than me.")
 
     try:
-        end_time = datetime.now(timezone.utc) + timedelta(seconds=seconds)
-        await member.timeout(end_time)
-        await ctx.send(f"{member.mention} has been muted for **{duration}**")
-
-        # Auto unmute
-        await asyncio.sleep(seconds)
-        await member.timeout(None)
-        await ctx.send(f"{member.mention} has been automatically unmuted.")
-
+        await member.timeout_for(duration=duration*60, reason=reason)
+        await ctx.send(f"{member} has been muted for {duration} minutes. Reason: {reason}")
     except Exception as e:
-        await ctx.send(f"Error: {e}")
+        await ctx.send(f"Failed to mute: {e}")
 
+# -----------------------------
+#       UNMUTE COMMAND
+# -----------------------------
 @bot.command()
 @commands.has_permissions(moderate_members=True)
 async def unmute(ctx, member: discord.Member):
     try:
-        await member.timeout(None)
-        await ctx.send(f"{member.mention} has been manually unmuted.")
-    except:
-        await ctx.send("Could not unmute this user.")
+        await member.timeout_until(None)
+        await ctx.send(f"{member} has been unmuted.")
+    except Exception as e:
+        await ctx.send(f"Failed to unmute: {e}")
 
-# Run bot (Railway loads TOKEN from environment)
+# -----------------------------
+#         BAN COMMAND
+# -----------------------------
+@bot.command()
+@commands.has_permissions(ban_members=True)
+async def ban(ctx, member: discord.Member, *, reason="No reason provided"):
+    if member == ctx.author:
+        return await ctx.send("You can't ban yourself.")
+    if member.top_role >= ctx.author.top_role:
+        return await ctx.send("You can't ban someone with a higher or equal role.")
+    if member.top_role >= ctx.guild.me.top_role:
+        return await ctx.send("I can't ban someone with a higher role than me.")
+
+    await member.ban(reason=reason)
+    await ctx.send(f"{member} has been banned. Reason: {reason}")
+
+# -----------------------------
+#        UNBAN COMMAND
+# -----------------------------
+@bot.command()
+@commands.has_permissions(ban_members=True)
+async def unban(ctx, user: discord.User, *, reason="No reason provided"):
+    await ctx.guild.unban(user, reason=reason)
+    await ctx.send(f"{user} has been unbanned.")
+
+# -----------------------------
+#         BOT ONLINE
+# -----------------------------
+@bot.event
+async def on_ready():
+    print(f"{bot.user} is online!")
+
+# -----------------------------
+#        RUN THE BOT
+# -----------------------------
 bot.run(os.getenv("TOKEN"))

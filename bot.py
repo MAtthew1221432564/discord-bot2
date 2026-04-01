@@ -1,77 +1,115 @@
 import discord
 from discord.ext import commands
+import datetime
 import os
 
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
+intents.guilds = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # -----------------------------
-#        MUTE COMMAND
+# TIME PARSER (10s, 1m, 10m, 1h, 1w)
+# -----------------------------
+def parse_duration(duration_str):
+    units = {
+        "s": 1,
+        "m": 60,
+        "h": 3600,
+        "d": 86400,
+        "w": 604800
+    }
+
+    try:
+        unit = duration_str[-1].lower()
+        value = int(duration_str[:-1])
+
+        if unit not in units:
+            return None
+
+        return value * units[unit]
+
+    except:
+        return None
+
+
+# -----------------------------
+# BOT READY
+# -----------------------------
+@bot.event
+async def on_ready():
+    print(f"Bot is online as {bot.user}")
+
+
+# -----------------------------
+# MUTE COMMAND
 # -----------------------------
 @bot.command()
 @commands.has_permissions(moderate_members=True)
-async def mute(ctx, member: discord.Member, duration: int, *, reason="No reason provided"):
-    if member == ctx.author:
-        return await ctx.send("You can't mute yourself.")
-    if member.top_role >= ctx.author.top_role:
-        return await ctx.send("You can't mute someone with a higher or equal role.")
-    if member.top_role >= ctx.guild.me.top_role:
-        return await ctx.send("I can't mute someone with a higher role than me.")
+async def mute(ctx, member: discord.Member, duration: str, *, reason="No reason provided"):
+    seconds = parse_duration(duration)
+
+    if seconds is None:
+        return await ctx.send("❌ Invalid duration. Use: `10s`, `1m`, `10m`, `1h`, `1w`.")
 
     try:
-        await member.timeout_for(duration=duration*60, reason=reason)
-        await ctx.send(f"{member} has been muted for {duration} minutes. Reason: {reason}")
+        until = discord.utils.utcnow() + datetime.timedelta(seconds=seconds)
+        await member.timeout(until, reason=reason)
+        await ctx.send(f"🔇 {member.mention} has been muted for **{duration}**. Reason: {reason}")
+
     except Exception as e:
-        await ctx.send(f"Failed to mute: {e}")
+        await ctx.send(f"❌ Failed to mute: {e}")
+
 
 # -----------------------------
-#       UNMUTE COMMAND
+# UNMUTE COMMAND
 # -----------------------------
 @bot.command()
 @commands.has_permissions(moderate_members=True)
 async def unmute(ctx, member: discord.Member):
     try:
-        await member.timeout_until(None)
-        await ctx.send(f"{member} has been unmuted.")
+        await member.timeout(None)
+        await ctx.send(f"🔊 {member.mention} has been unmuted.")
     except Exception as e:
-        await ctx.send(f"Failed to unmute: {e}")
+        await ctx.send(f"❌ Failed to unmute: {e}")
+
 
 # -----------------------------
-#         BAN COMMAND
+# BAN COMMAND
 # -----------------------------
 @bot.command()
 @commands.has_permissions(ban_members=True)
 async def ban(ctx, member: discord.Member, *, reason="No reason provided"):
-    if member == ctx.author:
-        return await ctx.send("You can't ban yourself.")
-    if member.top_role >= ctx.author.top_role:
-        return await ctx.send("You can't ban someone with a higher or equal role.")
-    if member.top_role >= ctx.guild.me.top_role:
-        return await ctx.send("I can't ban someone with a higher role than me.")
+    try:
+        await member.ban(reason=reason)
+        await ctx.send(f"⛔ {member.mention} has been banned. Reason: {reason}")
+    except Exception as e:
+        await ctx.send(f"❌ Failed to ban: {e}")
 
-    await member.ban(reason=reason)
-    await ctx.send(f"{member} has been banned. Reason: {reason}")
 
 # -----------------------------
-#        UNBAN COMMAND
+# UNBAN COMMAND
 # -----------------------------
 @bot.command()
 @commands.has_permissions(ban_members=True)
-async def unban(ctx, user: discord.User, *, reason="No reason provided"):
-    await ctx.guild.unban(user, reason=reason)
-    await ctx.send(f"{user} has been unbanned.")
+async def unban(ctx, *, user: str):
+    try:
+        name, discriminator = user.split("#")
+        for ban_entry in await ctx.guild.bans():
+            banned_user = ban_entry.user
+            if banned_user.name == name and banned_user.discriminator == discriminator:
+                await ctx.guild.unban(banned_user)
+                return await ctx.send(f"✅ Unbanned **{user}**")
+
+        await ctx.send("❌ User not found in ban list.")
+
+    except Exception as e:
+        await ctx.send(f"❌ Failed to unban: {e}")
+
 
 # -----------------------------
-#         BOT ONLINE
-# -----------------------------
-@bot.event
-async def on_ready():
-    print(f"{bot.user} is online!")
-
-# -----------------------------
-#        RUN THE BOT
+# RUN BOT
 # -----------------------------
 bot.run(os.getenv("TOKEN"))

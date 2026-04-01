@@ -64,6 +64,20 @@ async def mute(ctx, member: discord.Member, duration: str, *, reason="No reason 
 
 
 # -----------------------------
+# MUTE 10 SECONDS SHORTCUT
+# -----------------------------
+@bot.command()
+@commands.has_permissions(moderate_members=True)
+async def mute10s(ctx, member: discord.Member, *, reason="No reason provided"):
+    try:
+        until = discord.utils.utcnow() + datetime.timedelta(seconds=10)
+        await member.timeout(until, reason=reason)
+        await ctx.send(f"🔇 {member.mention} has been muted for **10 seconds**. Reason: {reason}")
+    except Exception as e:
+        await ctx.send(f"❌ Failed to mute: {e}")
+
+
+# -----------------------------
 # UNMUTE COMMAND
 # -----------------------------
 @bot.command()
@@ -107,6 +121,35 @@ async def unban(ctx, *, user: str):
 
     except Exception as e:
         await ctx.send(f"❌ Failed to unban: {e}")
+
+
+# -----------------------------
+# KICK COMMAND
+# -----------------------------
+@bot.command()
+@commands.has_permissions(kick_members=True)
+async def kick(ctx, member: discord.Member, *, reason="No reason provided"):
+    try:
+        await member.kick(reason=reason)
+        await ctx.send(f"👢 {member.mention} has been kicked. Reason: {reason}")
+    except Exception as e:
+        await ctx.send(f"❌ Failed to kick: {e}")
+
+
+# -----------------------------
+# PURGE COMMAND
+# -----------------------------
+@bot.command()
+@commands.has_permissions(manage_messages=True)
+async def purge(ctx, amount: int):
+    if amount < 1:
+        return await ctx.send("❌ You must delete at least 1 message.")
+
+    try:
+        deleted = await ctx.channel.purge(limit=amount + 1)
+        await ctx.send(f"🧹 Deleted **{len(deleted) - 1}** messages.", delete_after=3)
+    except Exception as e:
+        await ctx.send(f"❌ Failed to purge messages: {e}")
 
 
 # -----------------------------

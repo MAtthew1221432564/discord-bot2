@@ -110,6 +110,36 @@ async def unban(ctx, *, user: str):
 
 
 # -----------------------------
+# KICK COMMAND
+# -----------------------------
+@bot.command()
+@commands.has_permissions(kick_members=True)
+async def kick(ctx, member: discord.Member, *, reason="No reason provided"):
+    try:
+        await member.kick(reason=reason)
+        await ctx.send(f"👢 {member.mention} has been kicked. Reason: {reason}")
+    except Exception as e:
+        await ctx.send(f"❌ Failed to kick: {e}")
+
+
+# -----------------------------
+# PURGE COMMAND (MAX 100 PER BATCH)
+# -----------------------------
+@bot.command()
+@commands.has_permissions(manage_messages=True)
+async def purge(ctx, amount: int):
+    if amount < 1:
+        return await ctx.send("❌ You must delete at least 1 message.")
+
+    # Discord only allows 100 per bulk delete, but discord.py loops automatically.
+    try:
+        deleted = await ctx.channel.purge(limit=amount + 1)
+        await ctx.send(f"🧹 Deleted **{len(deleted) - 1}** messages.", delete_after=3)
+    except Exception as e:
+        await ctx.send(f"❌ Failed to purge messages: {e}")
+
+
+# -----------------------------
 # RUN BOT
 # -----------------------------
 bot.run(os.getenv("TOKEN"))

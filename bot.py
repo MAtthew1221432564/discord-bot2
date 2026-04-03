@@ -90,14 +90,15 @@ async def ban(ctx, member: discord.Member, *, reason="No reason provided"):
 
 
 # -----------------------------
-# UNBAN COMMAND
+# UNBAN COMMAND (FIXED)
 # -----------------------------
 @bot.command()
 @commands.has_permissions(ban_members=True)
 async def unban(ctx, *, user: str):
     try:
         name, discriminator = user.split("#")
-        for ban_entry in await ctx.guild.bans():
+
+        async for ban_entry in ctx.guild.bans():
             banned_user = ban_entry.user
             if banned_user.name == name and banned_user.discriminator == discriminator:
                 await ctx.guild.unban(banned_user)
@@ -131,7 +132,6 @@ async def purge(ctx, amount: int):
     if amount < 1:
         return await ctx.send("❌ You must delete at least 1 message.")
 
-    # Discord only allows 100 per bulk delete, but discord.py loops automatically.
     try:
         deleted = await ctx.channel.purge(limit=amount + 1)
         await ctx.send(f"🧹 Deleted **{len(deleted) - 1}** messages.", delete_after=3)

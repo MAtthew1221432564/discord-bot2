@@ -90,19 +90,42 @@ async def ban(ctx, member: discord.Member, *, reason="No reason provided"):
 
 
 # -----------------------------
-# UNBAN COMMAND (FIXED)
+# UNIVERSAL UNBAN COMMAND (NEW)
 # -----------------------------
 @bot.command()
 @commands.has_permissions(ban_members=True)
 async def unban(ctx, *, user: str):
     try:
-        name, discriminator = user.split("#")
+        # If user is a mention <@1234567890>
+        if user.startswith("<@") and user.endswith(">"):
+            user_id = int(user.replace("<@", "").replace(">", "").replace("!", ""))
+            banned_user = await ctx.guild.fetch_ban(discord.Object(id=user_id))
+            await ctx.guild.unban(banned_user.user)
+            return await ctx.send(f"✅ Unbanned **{banned_user.user}**")
 
+        # If user is a numeric ID
+        if user.isdigit():
+            user_id = int(user)
+            banned_user = await ctx.guild.fetch_ban(discord.Object(id=user_id))
+            await ctx.guild.unban(banned_user.user)
+            return await ctx.send(f"✅ Unbanned **{banned_user.user}**")
+
+        # If user is username or username#1234
         async for ban_entry in ctx.guild.bans():
             banned_user = ban_entry.user
-            if banned_user.name == name and banned_user.discriminator == discriminator:
+
+            # Match new username system
+            if banned_user.name.lower() == user.lower():
                 await ctx.guild.unban(banned_user)
-                return await ctx.send(f"✅ Unbanned **{user}**")
+                return await ctx.send(f"✅ Unbanned **{banned_user}**")
+
+            # Match old username#discriminator
+            if "#" in user:
+                name, discriminator = user.split("#")
+                if (banned_user.name == name and 
+                    banned_user.discriminator == discriminator):
+                    await ctx.guild.unban(banned_user)
+                    return await ctx.send(f"✅ Unbanned **{banned_user}**")
 
         await ctx.send("❌ User not found in ban list.")
 
